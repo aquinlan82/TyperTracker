@@ -1,3 +1,5 @@
+#Typer Tracker
+
 C++ program runs on startup and collects data into txt files
 clickPlace puts x then y on each line when you click
 clickTime puts the yearmonthday you clicked, could be updated to include time
