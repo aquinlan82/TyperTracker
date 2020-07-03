@@ -11,128 +11,47 @@ import numpy as np
 from datetime import datetime
 from keyboard import drawKeyboard
 import mplcursors
+import helper
 
-def initServer():
-	print("Connecting to Server")
-	#init server connection
-	#driver = "{MySQL ODBC 8.0 Driver}"
-	driver = "{ODBC Driver 13 for SQL Server}"
-	server = "127.0.0.1"
-	database = "tracker"
-	username = "root"
-	password = "Password!"
-	#conn = pyodbc.connect("driver="+driver+";server="+server+";database="+database+";user="+username+";password="+password+";")
-	conn = pyodbc.connect("DSN=dsn;UID=root;PWD=Password!")
+""" Check that start is before end and dates make sense """
+def timesAreValid(start, end):
+	start = [int(i) for i in start]
+	end = [int(i) for i in end]
 
-	print("Success!")	
-	return conn
+	if len(start) != 3 or len(end) != 3:
+		return False
+	if start[1] > 12 or start[1] < 1 or end[1] > 12 or end[1] < 1:
+		return False
+	if start[0] < 1 or end[0] < 1:
+		return False
+	if start[2] > end[2]:
+		return False
+	if start[2] == end[2] and start[1] > end[1]:
+		return False
+	if start[2] == end[2] and start[1] == end[1] and start[0] > end[0]:
+		return False
+	return True
 
+""" Creates string to send to SQL """
+def constructQuery(start, end, select, db):
+	selectString = "select " + select
+	fromString = " from tracker." + db
+	whereString = " where " + helper.getWhereString(start, end)
+	query = selectString + fromString + whereString
+	return query
 
-def refreshClickDatabase():
-	print("Loading Mouse Data...")
-	global conn
-	cursor = conn.cursor()
-
-	#clickLocData = open("TyperTracker/clickPlace.txt")
-	#clickTimeData = open("TyperTracker/clickTime.txt")
-	clickLocData = open("C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\clickPlace.txt")
-	clickTimeData = open("C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\clickTime.txt")
+""" Gets result of SQL query """
+def getCursor(time1, time2, select, db):
+	if timesAreValid(time1, time2):
+		global conn
+		cursor = conn.cursor()
+		string = constructQuery(time1, time2, select, db)
+		cursor.execute(string)
+		return cursor
 	
-	while True:
-		x = clickLocData.readline().strip()
-		if x == "":
-			break
-		else:
-			y = clickLocData.readline().strip()
-			time = clickTimeData.readline().strip()
-			year = str(int(str(time)[0:2])+8)
-			month = str(int(str(time)[2:4])+1)
-			day = str(time)[4:6]
-			hour = "3"
-			minute = "2"
-			
-			string = "insert into tracker.Clicks values ("+x+","+y+","+day+","+month+","+year+","+hour+","+minute+")"
-			cursor.execute(string)
-			conn.commit()
-	#clickLocData = open("TyperTracker/clickPlace.txt", "w")
-	#clickTimeData = open("TyperTracker/clickTime.txt", "w")
-	clickLocData = open("C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\clickPlace.txt","w")
-	clickTimeData = open("C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\clickTime.txt", "w")
-
-	clickLocData.write("")
-	clickTimeData.write("")
-	print("Done")
-
-def refreshTypeDatabase():
-	print("Loading Keyboard Data...")
-	global conn
-	cursor = conn.cursor()
-
-	#typeCharData = open("TyperTracker/typeChar.txt")
-	#typeTimeData = open("TyperTracker/typeTime.txt")
-	typeCharData = open("C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\typeChar.txt")
-	typeTimeData = open("C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\typeTime.txt")
-	
-	while True:
-		c = typeCharData.readline().strip()
-		if c == "":
-			break
-		else:
-			time = typeTimeData.readline().strip()
-			year = str(int(str(time)[0:2])+8)
-			month = str(int(str(time)[2:4])+1)
-			day = str(time)[4:6]
-			hour = "3"
-			minute = "2"
-			
-			string = "insert into tracker.Chars values (\""+c+"\","+day+","+month+","+year+","+hour+","+minute+")"
-			cursor.execute(string)
-			conn.commit()
-	#typeCharData = open("TyperTracker/typeChar.txt", "w")
-	#typeTimeData = open("TyperTracker/typeTime.txt", "w")
-	typeCharData = open("C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\typeChar.txt", "w")
-	typeTimeData = open("C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\typeTime.txt", "w")
-	
-	typeCharData.write("")
-	typeTimeData.write("")
-	print("Done")
-
-
-def getClickLocCursor(time1, time2):
-	print("Accessing Mouse Data")
-	#time = [day, month, year, hour,minute]
-	global conn
-	cursor = conn.cursor()
-	string = "select X,Y from tracker.Clicks where day_ >= "+time1[0]+" and day_ <= "+time2[0]+" and month_ >= "+time1[1]+" and month_ <= "+time2[1]+" and year_ >= "+time1[2]+" and year_ <= "+time2[2]
-	cursor.execute(string)
-	return cursor
-
-def getTypeCharCursor(time1, time2):
-	print("Accessing Keyboard Data")
-	#time = [day, month, year, hour,minute]
-	global conn
-	cursor = conn.cursor()
-	string = "select char_ from tracker.Chars where day_ >= "+time1[0]+" and day_ <= "+time2[0]+" and month_ >= "+time1[1]+" and month_ <= "+time2[1]+" and year_ >= "+time1[2]+" and year_ <= "+time2[2]
-	cursor.execute(string)
-	return cursor
-
-def getTimeCursor(time1, time2, click):
-	print("Accessing Time Data")
-	#time = [day, month, year, hour,minute]
-	if click:
-		db = "Clicks"
-	else:
-		db = "Chars"
-	global conn
-	cursor = conn.cursor()
-	string = "select day_, month_, year_, hour_, minute_ from tracker."+db+" where day_ >= "+time1[0]+" and day_ <= "+time2[0]+" and month_ >= "+time1[1]+" and month_ <= "+time2[1]+" and year_ >= "+time1[2]+" and year_ <= "+time2[2]
-	cursor.execute(string)
-	return cursor
-
+""" Organize keypress data into dictionary based on frequency pressed """
 def getTypeCharAxes(time1, time2):
-	print("Sorting Keyboard Data")
-	#get relevant points based on time
-	points = getTypeCharCursor(time1, time2)
+	points = getCursor(time1, time2, "char_", "Chars")
 	dictFreq = {}
 	for point in points:
 		if point[0] in dictFreq:
@@ -141,13 +60,11 @@ def getTypeCharAxes(time1, time2):
 			dictFreq[point[0]] = 1
 	return dictFreq
 
+""" Organize click coordinates into lists """
 def getClickLocAxes(time1, time2):
-	print("Sorting Mouse Data")
-	#get relevant points based on time
-	points = getClickLocCursor(time1, time2)
-
-	#organize x, y, and freq into dictionary
+	points = getCursor(time1, time2, "X,Y", "Clicks")
 	dictFreq = {}
+	# organize coordinates into dictionary based on frequency
 	for point in points:
 		x = point[0]
 		y = point[1]
@@ -171,12 +88,10 @@ def getClickLocAxes(time1, time2):
 			freq.append(dictFreq[x_val][y_val])
 	return x,y, freq
 
+""" Organize points into lists by frequency """
+def getTimeAxes(time1, time2, scale, db):
+	points = getCursor(time1, time2, " day_, month_, year_, hour_, minute_ ", db)
 
-def getTimeAxes(time1, time2, scale, click):
-	print("Sorting Time Data")
-	#get relevant points based on time
-	#point = [day, month, year, hour, minute]
-	points = getTimeCursor(time1, time2, click)
 	dictFreq = {}
 	for point in points:
 		year = point[2]
@@ -221,87 +136,93 @@ def getTimeAxes(time1, time2, scale, click):
 				
 	return times, freqs
 
+""" Returns endpoint dates in entry boxes """
+def getDates(index):
+	global startEntries
+	global endEntries
+	start = dateStringToArray(startEntries[index].get())
+	end = dateStringToArray(endEntries[index].get())
+	return start, end
+
+
+""" Converts string in m/d/y to array in [d,m,y] """
 def dateStringToArray(string):
-	#converts string in m/d/y to array in [d,m,y]
 	temp = string.split("/")
 	if len(temp[2]) > 2:
 		temp[2] = temp[2][2:4]
 	out = [temp[1], temp[0], temp[2]]
 	return out
 
+""" Called when Go button is pressed on click click heat map tab """
 def updateMouseHeat():	
-	global MHstartIn
-	global MHendIn
-	global mouseHeatPlot
-	global mouseHeatCanvas
-	start = dateStringToArray(MHstartIn.get())
-	end = dateStringToArray(MHendIn.get())
+	start, end = getDates(0)
 	x,y,freq = getClickLocAxes(start,end)
-	f = Figure()
-	mouseHeatPlot = f.add_subplot(111)
-	mouseHeatPlot.scatter(x,y, c=freq)
-	mouseHeatCanvas = FigureCanvasTkAgg(f, clickHeatTab)
-	crs = mplcursors.cursor(mouseHeatPlot,hover=True)
-	crs.connect("add", lambda sel: sel.annotation.set_text(
-		'Point: {},{} \nClicked: {} times'.format(sel.target[0], sel.target[1], freq[sel.target.index])))
-	#mouseHeatCanvas.show()
-	mouseHeatCanvas.get_tk_widget().grid(row=3, column=1,columnspan=3, pady=30, padx=30)
+	drawPlot(x,y,freq, clickHeatTab)
 
+""" Called when Go button is pressed on keyboard tab """
 def updateTypeHeat():
-	global typeHeatCanvas
+	start, end = getDates(1)
 	dictFreq = getTypeCharAxes(start, end)
-	typeHeatCanvas = Canvas(typeHeatTab, width=750, height=250, bg="#788279")
-	drawKeyboard(typeHeatCanvas, dictFreq)
-	typeHeatCanvas.grid(row=3, column=1,columnspan=3, pady=50, padx=25)
+	canvas = Canvas(typeHeatTab, width=750, height=250, bg="#788279")
+	drawKeyboard(canvas, dictFreq)
+	canvas.grid(row=3, column=1,columnspan=3, pady=50, padx=25)
 
+""" Called when Go button is pressed on click frequency tab """
 def updateMouseTime():
-	global MTstartIn
-	global MTendIn
-	global mouseTimePlot
-	global mouseTimeCanvas
-	start = dateStringToArray(MTstartIn.get())
-	end = dateStringToArray(MTendIn.get())
-	times,freqs = getTimeAxes(start,end,scale,True)
-	f = Figure()
-	mouseTimePlot = f.add_subplot(111)
-	mouseTimePlot.plot(times, freqs, marker="o")
-	mouseTimeCanvas = FigureCanvasTkAgg(f, clickGraphTab)
-	crs = mplcursors.cursor(mouseTimePlot,hover=True)
-	crs.connect("add", lambda sel: sel.annotation.set_text(
-		'Clicks: {}'.format(sel.target[1])))
-	#mouseTimeCanvas.show()
-	mouseTimeCanvas.get_tk_widget().grid(row=3, column=1,columnspan=3, pady=30, padx=30)
+	start, end = getDates(2)
+	times,freqs = getTimeAxes(start,end,scale,"Clicks")
+	drawPlot(times, None, freqs, clickGraphTab)
 
+""" Called when Go button is pressed on type frequency tab """
 def updateTypeTime():
-	global TTstartIn
-	global TTendIn
-	global typeTimePlot
-	global typeTimeCanvas
-	start = dateStringToArray(TTstartIn.get())
-	end = dateStringToArray(TTendIn.get())
-	times,freqs = getTimeAxes(start,end,scale,False)
+	start, end = getDates(3)
+	times,freqs = getTimeAxes(start,end,scale,"Chars")
+	drawPlot(times, None, freqs, typeGraphTab)
+
+""" Creates text input boxes for time range and sets default values """
+def createDateEntries(tab, updateMethod):
+	global startEntries
+	global endEntries
+	Label(tab, text="From").grid(row=1,column=1)
+	startEntryBox = Entry(tab)
+	startEntryBox.insert(0,"05/17/2020")
+	startEntryBox.grid(row=2, column=1)
+	Label(tab, text="To").grid(row=1, column=2)
+	endEntryBox = Entry(tab)
+	endEntryBox.insert(0,now)
+	endEntryBox.grid(row=2, column=2)
+	start = dateStringToArray(startEntryBox.get())
+	end = dateStringToArray(endEntryBox.get())
+	Button(tab, text="Go", command=updateMethod).grid(row=1,column=3,rowspan=2)
+	startEntries.append(startEntryBox)
+	endEntries.append(endEntryBox)
+	return start, end
+
+""" Plots points """
+def drawPlot(x, y, freq, tab):
 	f = Figure()
-	typeTimePlot = f.add_subplot(111)
-	typeTimePlot.plot(times, freqs, marker="o")
-	typeTimeCanvas = FigureCanvasTkAgg(f, typeGraphTab)
-	crs = mplcursors.cursor(typeTimePlot,hover=True)
-	crs.connect("add", lambda sel: sel.annotation.set_text(
-		'Characters: {}'.format(sel.target[1])))
-	#typeTimeCanvas.show()
-	typeTimeCanvas.get_tk_widget().grid(row=3, column=1,columnspan=3, pady=30, padx=30)
+	plot = f.add_subplot(111)
+	if y != None:
+		plot.scatter(x,y, c=freq)
+	else:
+		plot.plot(x, freq, marker="o")
+	plot.set_xticklabels(plot.get_xticklabels(), rotation="vertical")
+	canvas = FigureCanvasTkAgg(f, tab)
+	crs = mplcursors.cursor(plot,hover=True)
+	if y != None:
+		crs.connect("add", lambda sel: sel.annotation.set_text(
+			'Point: {},{} \nClicked: {} times'.format(sel.target[0], sel.target[1], freq[sel.target.index])))
+	else:
+		crs.connect("add", lambda sel: sel.annotation.set_text(
+			'Characters: {}'.format(sel.target[1])))
+	canvas.get_tk_widget().grid(row=3, column=1,columnspan=3, pady=30, padx=30)
 
 
-
-
-#/////////////////////////
-conn = initServer()
+""" Main Method """
+conn = helper.initServer(helper.getWindows())
 now =datetime.now()
 now = now.strftime("%m/%d/%Y")
-
-#ans = input("Load data to SQL? ")
-#if ans == "y":
-#	refreshClickDatabase()
-#	refreshTypeDatabase()
+print("Loading Data")
 
 #window settings
 winLen = 800
@@ -323,100 +244,34 @@ tabPane.add(clickGraphTab, text = "Mouse Stats")
 tabPane.add(typeGraphTab, text = "Keyboard Stats")
 
 tabPane.pack(expand=1, fill="both")
+global startEntries
+global endEntries
+startEntries = []
+endEntries = []
 
 #Mouse Heat Tab
-Label(clickHeatTab, text="From").grid(row=1,column=1)
-MHstartIn = Entry(clickHeatTab)
-MHstartIn.insert(0,"5/17/2020")
-MHstartIn.grid(row=2, column=1)
-Label(clickHeatTab, text="To").grid(row=1, column=2)
-MHendIn = Entry(clickHeatTab)
-MHendIn.insert(0,now)
-MHendIn.grid(row=2, column=2)
-start = dateStringToArray(MHstartIn.get())
-end = dateStringToArray(MHendIn.get())
-Button(clickHeatTab, text="Go", command=updateMouseHeat).grid(row=1,column=3,rowspan=2)
-
+start, end = createDateEntries(clickHeatTab, updateMouseHeat)
 x,y,freq = getClickLocAxes(start,end)
-f = Figure()
-mouseHeatPlot = f.add_subplot(111)
-mouseHeatPlot.scatter(x,y, c=freq)
-mouseHeatCanvas = FigureCanvasTkAgg(f, clickHeatTab)
-crs = mplcursors.cursor(mouseHeatPlot,hover=True)
-crs.connect("add", lambda sel: sel.annotation.set_text(
-    'Point: {},{} \nClicked: {} times'.format(sel.target[0], sel.target[1], freq[sel.target.index])))
-#mouseHeatCanvas.show()
-mouseHeatCanvas.get_tk_widget().grid(row=3, column=1,columnspan=3, pady=30, padx=30)
+drawPlot(x,y,freq, clickHeatTab)
 
 #Key Heat Tab
-Label(typeHeatTab, text="From").grid(row=1,column=1)
-THstartIn = Entry(typeHeatTab)
-THstartIn.insert(0,"5/17/2020")
-THstartIn.grid(row=2, column=1)
-Label(typeHeatTab, text="To").grid(row=1, column=2)
-THendIn = Entry(typeHeatTab)
-THendIn.insert(0,now)
-THendIn.grid(row=2, column=2)
-start = dateStringToArray(THstartIn.get())
-end = dateStringToArray(THendIn.get())
-Button(typeHeatTab, text="Go", command=updateTypeHeat).grid(row=1,column=3,rowspan=2)
-
+start, end = createDateEntries(typeHeatTab, updateTypeHeat)
 dictFreq = getTypeCharAxes(start, end)
-typeHeatCanvas = Canvas(typeHeatTab, width=750, height=250, bg="#788279")
-drawKeyboard(typeHeatCanvas, dictFreq)
-typeHeatCanvas.grid(row=3, column=1,columnspan=3, pady=50, padx=25)
+canvas = Canvas(typeHeatTab, width=750, height=250, bg="#788279")
+drawKeyboard(canvas, dictFreq)
+canvas.grid(row=3, column=1,columnspan=3, pady=50, padx=25)
 
 #Mouse Stats Tab
 scale = "day"
-
-Label(clickGraphTab, text="From").grid(row=1,column=1)
-MTstartIn = Entry(clickGraphTab)
-MTstartIn.insert(0,"5/17/2020")
-MTstartIn.grid(row=2, column=1)
-Label(clickGraphTab, text="To").grid(row=1, column=2)
-MTendIn = Entry(clickGraphTab)
-MTendIn.insert(0,now)
-MTendIn.grid(row=2, column=2)
-start = dateStringToArray(MTstartIn.get())
-end = dateStringToArray(MTendIn.get())
-Button(clickGraphTab, text="Go", command=updateMouseTime).grid(row=1,column=3,rowspan=2)
-
-times,freqs = getTimeAxes(start,end,scale,True)
-f = Figure()
-mouseTimePlot = f.add_subplot(111)
-mouseTimePlot.plot(times, freqs, marker="o")
-mouseTimeCanvas = FigureCanvasTkAgg(f, clickGraphTab)
-crs = mplcursors.cursor(mouseTimePlot,hover=True)
-crs.connect("add", lambda sel: sel.annotation.set_text(
-    'Clicks: {}'.format(sel.target[1])))
-#mouseTimeCanvas.show()
-mouseTimeCanvas.get_tk_widget().grid(row=3, column=1,columnspan=3, pady=30, padx=30)
+start, end = createDateEntries(clickGraphTab, updateMouseTime)
+times,freqs = getTimeAxes(start,end,scale,"Clicks")
+drawPlot(times, None, freqs, clickGraphTab)
 
 #Key Stats Tab
 scale = "day"
-
-Label(typeGraphTab, text="From").grid(row=1,column=1)
-TTstartIn = Entry(typeGraphTab)
-TTstartIn.insert(0,"5/17/2020")
-TTstartIn.grid(row=2, column=1)
-Label(typeGraphTab, text="To").grid(row=1, column=2)
-TTendIn = Entry(typeGraphTab)
-TTendIn.insert(0,now)
-TTendIn.grid(row=2, column=2)
-start = dateStringToArray(TTstartIn.get())
-end = dateStringToArray(TTendIn.get())
-Button(typeGraphTab, text="Go", command=updateTypeTime).grid(row=1,column=3,rowspan=2)
-
-times,freqs = getTimeAxes(start,end,scale,False)
-f = Figure()
-typeTimePlot = f.add_subplot(111)
-typeTimePlot.plot(times, freqs, marker="o")
-typeTimeCanvas = FigureCanvasTkAgg(f, typeGraphTab)
-crs = mplcursors.cursor(typeTimePlot,hover=True)
-crs.connect("add", lambda sel: sel.annotation.set_text(
-    'Characters: {}'.format(sel.target[1])))
-#typeTimeCanvas.show()
-typeTimeCanvas.get_tk_widget().grid(row=3, column=1,columnspan=3, pady=30, padx=30)
+start, end = createDateEntries(typeGraphTab, updateTypeTime)
+times,freqs = getTimeAxes(start,end,scale,"Chars")
+drawPlot(times, None, freqs, typeGraphTab)
 
 #Loop
 root.mainloop()

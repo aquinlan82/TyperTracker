@@ -5,125 +5,156 @@
 #include <fstream>
 #include <Windows.h>
 
+/*
+Typer Tracker
+Created by Allison Quinlan
+Started May 2020
+*/
+
 using namespace std;
 
 HHOOK mouseHook;
 HHOOK keyHook;
-std::string output = "";
-bool flag = false;
+std::string base = "C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\";
+int dataCount = 0;
 
-void addTimeClicked(std::string button) {
+/* Periodically calls python code to upload to SQL*/
+void uploadData() {
+	dataCount++;
+	if (dataCount > 1000) {
+		//WinExec("pythonw C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\upload.py", SW_HIDE);
+		system("python C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\upload.py");
+		dataCount = 0;
+	}
+}
+
+/* Adds current time in 'yearmonthday' format to file */
+void addTime(std::string filename) {
 	time_t now = time(0);
 	tm *ltm = localtime(&now);
 	string result = to_string(ltm->tm_year) + to_string(ltm->tm_mon) + to_string(ltm->tm_mday);
-	ofstream outputFile("C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\clickTime.txt", fstream::app);
+	ofstream outputFile(base + filename, fstream::app);
 	outputFile << result << std::endl;
+	uploadData();
 }
 
+/* Adds click to clickPlace.txt in format 'x \n y' */
 void addPlaceClicked(int x, int y) {
-	ofstream outputFile("C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\clickPlace.txt", fstream::app);
+	ofstream outputFile(base + "clickPlace.txt", fstream::app);
 	outputFile << x << std::endl << y << std::endl;
 }
 
-void addSpecialTyped(UINT code) {
-	ofstream outputFile("C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\typeChar.txt", fstream::app);
-	string alt = "";
+/* All codes that have two keys will have exactly one key with a nonnull tiebreaker*/
+std::string breakDuplicates(UINT code, char tiebreaker) {
+	std::string alt = "";
+	if (tiebreaker != NULL) {
+		std::string out = "";
+		out = out + tiebreaker;
+		return out;
+	} else {
+		switch (code) {
+			case 106: alt = "prtsc"; break;
+			case 45: alt = "insert"; break;
+			case 46: alt = "delete"; break;
+			case 37: alt = "left"; break;
+			case 38: alt = "up"; break;
+			case 40: alt = "down"; break;
+			case 39: alt = "right"; break;
+			case 71: alt = "play"; break;
+			case 81: alt = "rewind"; break;
+			case 80: alt = "fastforward"; break;
+			default: alt = "";
+		}
+		return alt;
+	}
+
+}
+
+/* Add special characters */
+std::string getSpecialTyped(UINT code, char tiebreaker) {
+	std::string alt = "";
 	switch (code) {
-		case 106: alt = "prtsc"; break;
-		case 45: alt = "insert"; break;
-		case 46: alt = "delete"; break;
+		case 192: alt = "`"; break;
+		case 9: alt = "tab"; break;
+		case 241: alt = "windows"; break;
+		case 13: alt = "enter"; break;
+		case 8: alt = "backspace"; break;
+		case 68: alt = "mute"; break;
+		case 112: alt = "f1"; break;
+		case 113: alt = "f2"; break;
+		case 114: alt = "f3"; break;
+		case 115: alt = "f4"; break;
+		case 116: alt = "f5"; break;
+		case 117: alt = "f6"; break;
+		case 118: alt = "f7"; break;
+		case 119: alt = "f8"; break;
+		case 120: alt = "f9"; break;
+		case 121: alt = "f10"; break;
+		case 122: alt = "f11"; break;
+		case 123: alt = "f12"; break;
+		case 189: alt = "-"; break;
+		case 32: alt = " "; break;
+		case 188: alt = ","; break;
+		case 190: alt = "."; break;
+		case 191: alt = "/"; break;
+		case 109: alt = "-"; break;
+		case 187: alt = "="; break;
+		case 107: alt = "+"; break;
+		case 36: alt = "7"; break;
+		case 33: alt = "9"; break;
+		case 12: alt = "5"; break;
+		case 34: alt = "3"; break;
 		case 71: alt = "play"; break;
 		case 81: alt = "rewind"; break;
 		case 80: alt = "fast forward"; break;
 		case 20: alt = "caps"; break;
 		case 16: alt = "shift"; break;
 		case 17: alt = "ctrl"; break;
-		case 37: alt = "left"; break;
-		case 38: alt = "up"; break;
-		case 40: alt = "down"; break;
-		case 39: alt = "right"; break;
 		case 144: alt = "num lock"; break;
+		default: alt = breakDuplicates(code, tiebreaker);
 	}
-	if (alt != "") {
-		outputFile << alt << std::endl;
-	}
+	return alt;
 }
 
-void addCharTyped(char charTyped) {
-	ofstream outputFile("C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\typeChar.txt", fstream::app);
-	string alt = "";
-	switch (charTyped) {
-		case VK_RETURN: alt = "enter"; break;
-		case VK_BACK: alt = "back"; break;
-		case VK_TAB: alt = "tab"; break;
-		case VK_ESCAPE: alt = "esc"; break;
-	}
-	if (alt == "") {
-		outputFile << charTyped << std::endl;
+/* Adds keys to file */
+void addCharTyped(UINT code, char tiebreaker) {
+	std::string charTyped;
+	if (((code >= 48 && code <= 57) || (code >= 65 && code <= 90)) && tiebreaker) {
+		charTyped = char(code);
 	} else {
-		outputFile << alt << std::endl;
+		charTyped = getSpecialTyped(code, tiebreaker);
 	}
+	
+	ofstream outputFile(base + "typeChar.txt", fstream::app);
+	outputFile << charTyped << std::endl;
 }
 
-void addTimeTyped() {
-	time_t now = time(0);
-	tm *ltm = localtime(&now);
-	string result = to_string(ltm->tm_year) + to_string(ltm->tm_mon) + to_string(ltm->tm_mday);
-	ofstream outputFile("C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\typeTime.txt", fstream::app);
-	outputFile << result << std::endl;
-}
-
+/* Called when key pressed, calls helpers to upload to txt files */
 LRESULT __stdcall KeyHookCallback(int nCode, WPARAM wParam, LPARAM lParam) {
 	if (nCode >= 0) {
 		auto kbdStruct = *((KBDLLHOOKSTRUCT*)lParam);
 		if (wParam == WM_KEYDOWN) {
-			UINT raw = MapVirtualKey(kbdStruct.vkCode, 2);
-			if (raw != 0) {
-				char c = MapVirtualKey(kbdStruct.vkCode, 2);
-				addCharTyped(c);
-				addTimeTyped();
-			} else {
-				UINT uCode = MapVirtualKey(kbdStruct.scanCode, 1);
-				addSpecialTyped(uCode);
-				//cout << "press " << uCode << endl;
-			}
+			char c = MapVirtualKey(kbdStruct.vkCode, 2);
+			UINT uCode = MapVirtualKey(kbdStruct.scanCode, 1);
+			addCharTyped(uCode, c);
+			addTime("typeTime.txt");
 		}
 	}
 	return CallNextHookEx(mouseHook, nCode, wParam, lParam);
 }
 
+/* Called when mouse clicked, calls helpers to upload to txt files */
 LRESULT __stdcall MouseHookCallback(int nCode, WPARAM wParam, LPARAM lParam) {
-	time_t now = time(0);
-	tm *ltm = localtime(&now);
-	//7 is random, change for amount of minutes between uploads
-	if (ltm->tm_min % 30 == 0) {
-	//if (ltm->tm_min == 5) {
-		if (!flag) {
-			WinExec("pythonw C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\upload.py", SW_HIDE);
-			flag = true;
-		}
-	} else {
-		flag = false;
-	}
-
-	if (nCode >= 0) {
+	if (nCode >= 0 && wParam == WM_LBUTTONDOWN) {
 		POINT pt;
 		GetCursorPos(&pt);
-		switch (wParam) {
-		case WM_LBUTTONDOWN:
-			addTimeClicked("leftClick");
-			addPlaceClicked(pt.x, pt.y);
-			break;
-
-		case WM_RBUTTONDOWN:
-			addTimeClicked("rightClick");
-			addPlaceClicked(pt.x, pt.y);
-			break;
-		}
+		addTime("clickTime.txt");
+		addPlaceClicked(pt.x, pt.y);
 	}
 	return CallNextHookEx(mouseHook, nCode, wParam, lParam);
 }
 
+/* Sets hooks for mouse and keyboard */
 void SetHook() {
 	if (!(mouseHook = SetWindowsHookEx(WH_MOUSE_LL, MouseHookCallback, NULL, 0))) {
 		cout << "Failed to install mouse hook!" << endl;
@@ -133,13 +164,15 @@ void SetHook() {
 	}
 }
 
+/* Stops hooks from reacting */
 void ReleaseHook() {
 	UnhookWindowsHookEx(mouseHook);
 	UnhookWindowsHookEx(keyHook);
 }
 
 //int main() {
-//int WINAPI WinMain(
+//int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+/* Sets hooks and waits to react to mouse clicks and key presses */
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
 	SetHook();
 	MSG msg;

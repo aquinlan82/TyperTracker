@@ -1,82 +1,99 @@
 import pyodbc
-
-def initServer():
-	print("Connecting to Server")
-	#init server connection
-	#driver = "{MySQL ODBC 8.0 Driver}"
-	driver = "{ODBC Driver 13 for SQL Server}"
-	server = "127.0.0.1"
-	database = "tracker"
-	username = "root"
-	password = "Password!"
-	#conn = pyodbc.connect("Driver="+driver+";SERVER="+server+";DATABASE="+database+";USER="+username+";PASSWORD="+password+";")
-	conn = pyodbc.connect("DSN=dsn;UID=root;PWD=Password!")
-	#conn = pyodbc.connect("driver="+driver+";server="+server+";database="+database+";user="+username+";password="+password+";")
-
-	print("Success!")	
-	return conn
+import os
+import sys
+import helper
 
 
+
+""" Add txt file values to SQL """
 def refreshClickDatabase():
 	print("Loading Mouse Data...")
-	global conn
-	cursor = conn.cursor()
+	entries = getArray("clickPlace.txt", "clickTime.txt", True)
+	enterEntries(entries)
+	eraseFiles("clickPlace.txt", "clickTime.txt")
+	print("Done")
 
-	clickLocData = open("C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\clickPlace.txt")
-	clickTimeData = open("C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\clickTime.txt")
+
+""" Add txt file values to SQL """
+def refreshTypeDatabase():
+	print("Loading Keyboard Data...")
+	entries = getArray("typeChar.txt", "typeTime.txt", False)
+	enterEntries(entries)
+	eraseFiles("typeChar.txt", "typeTime.txt")
+	print("Done")
+
+"""Creates array of data in txt files """
+def getArray(place, time, coords):
+	entries = []
+	clickLocData = open(base + place)
+	clickTimeData = open(base + time)
 	while True:
-		x = clickLocData.readline().strip()
-		if x == "":
-			break
-		else:
-			y = clickLocData.readline().strip()
+		try:
+			x = clickLocData.readline().strip()
+			y = ""
+			if coords:
+				y = clickLocData.readline().strip()
 			time = clickTimeData.readline().strip()
 			year = str(int(str(time)[0:2])+8)
 			month = str(int(str(time)[2:4])+1)
 			day = str(time)[4:6]
 			hour = "3"
 			minute = "2"
-			
-			string = "insert into tracker.Clicks values ("+x+","+y+","+day+","+month+","+year+","+hour+","+minute+")"
-			cursor.execute(string)
-			conn.commit()
+			if coords:
+				temp = [x,y,day,month,year,hour,minute]
+			else:
+				temp = [x,day,month,year,hour,minute]
+			entries.append(temp)
+		except:
+			break
+	print("Array constructed... " + str(len(entries)) + " entries")
+	return entries
 
-	clickLocData = open("C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\clickPlace.txt","w")
-	clickTimeData = open("C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\clickTime.txt", "w")
+"""Change character if problem with escape characters """
+def scanForProblems(char):
+	if char == "\\":
+		return "\\\\"
+	else:
+		return char
 
-	clickLocData.write("")
-	clickTimeData.write("")
-	print("Done")
-
-def refreshTypeDatabase():
-	print("Loading Keyboard Data...")
+"""Add array entries to SQL """
+def enterEntries(entries):
 	global conn
 	cursor = conn.cursor()
+	i = 0
+	for entry in entries:
+		entry = [str(i) for i in entry]
+		try:
+			string = ""
+			if len(entry) == 7:
+				string = "insert into tracker.Clicks values ("+entry[0]+","+entry[1]+","+entry[2]+","+entry[3]+","+entry[4]+","+entry[5]+","+entry[6]+")"
+			else:
+				entry[0] = scanForProblems(entry[0])
+				string = "insert into tracker.Chars values (\""+str(entry[0])+"\","+entry[1]+","+entry[2]+","+entry[3]+","+entry[4]+","+entry[5]+")"
 
-	typeCharData = open("C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\typeChar.txt")
-	typeTimeData = open("C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\typeTime.txt")
-	while True:
-		c = typeCharData.readline().strip()
-		if c == "":
-			break
-		else:
-			time = typeTimeData.readline().strip()
-			year = str(int(str(time)[0:2])+8)
-			month = str(int(str(time)[2:4])+1)
-			day = str(time)[4:6]
-			hour = "3"
-			minute = "2"
-			
-			string = "insert into tracker.Chars values (\""+c+"\","+day+","+month+","+year+","+hour+","+minute+")"
 			cursor.execute(string)
 			conn.commit()
-	typeCharData = open("C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\typeChar.txt", "w")
-	typeTimeData = open("C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\typeTime.txt", "w")
-	typeCharData.write("")
-	typeTimeData.write("")
-	print("Done")
+			if i % 20 == 0:
+				print("Entering entry " + str(i) + " of " + str(len(entries)))
+			i = i + 1
+		except:
+			print("error with " + string)
+	print("Done entering... Hold on a moment")
+
+"""	Deletes data in the file """
+def eraseFiles(first, second):
+	clickLocData = open(base + first,"w")
+	clickTimeData = open(base + second, "w")
+	clickLocData.write("")
+	clickTimeData.write("")
 
 
-conn = initServer()
+
+""" Main Method """
+windows = helper.getWindows()
+global base
+base = helper.getBase(windows)
+
+conn = helper.initServer(windows)
 refreshClickDatabase()
 refreshTypeDatabase()
