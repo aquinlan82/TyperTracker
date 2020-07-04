@@ -30,10 +30,11 @@ def getWindows():
 
 """ Get directory for program """
 def getBase(windows):
-	base = os.getcwd()
+	#base = os.getcwd()
+	
 	if windows:
-		return base + "\\"
-	return base + "/TyperTracker/"
+		return "C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\"
+	return  "mnt/c/usr/documents/code/C++/TyperTracker/TyperTracker/"
 
 """ Figure out valid range based on start and end dates """
 def getWhereString(start, end):

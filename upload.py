@@ -27,6 +27,8 @@ def getArray(place, time, coords):
 	entries = []
 	clickLocData = open(base + place)
 	clickTimeData = open(base + time)
+	#clickLocData = open("C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\" + place)
+	#clickTimeData = open("C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\TyperTracker\\" + time)
 	while True:
 		try:
 			x = clickLocData.readline().strip()
