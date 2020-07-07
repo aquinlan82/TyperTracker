@@ -21,7 +21,7 @@ int dataCount = 0;
 /* Periodically calls python code to upload to SQL*/
 void uploadData() {
 	dataCount++;
-	if (dataCount > 1000) {
+	if (dataCount > 10000) {
 		//WinExec("pythonw C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\upload.py", SW_HIDE);
 		system("python C:\\Users\\aquin\\Documents\\Code\\C++\\TyperTracker\\upload.py");
 		dataCount = 0;
