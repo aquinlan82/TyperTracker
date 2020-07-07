@@ -124,7 +124,7 @@ def drawKeyboard(canvas, dictFreq):
 	offy = 17
 
 
-	order = ["esc", "f1", "f2","f3","f4","f5","f6","f7","f8","f9","f10","f11","f12", "prtsc", "insert", "delete", "play", "rewind", "fastforward", "off","`", "1","2","3","4","5","6","7","8","9","0","-","=", "backspace", "num lock","/","*","-","tab", "Q","W","E","R","T","Y","U","I","O","P","[","]","\\", "7", "8", "9", "+","caps","A","S","D","F","G","H","J","K","L",";","'","enter", "4", "5", "6","shift","Z","X","C","V","B","N","M",",",".","/", "shift", "1", "2", "3", "ctrl", "windows", " ","left","up","down","right"]
+	order = ["esc", "f1", "f2","f3","f4","f5","f6","f7","f8","f9","f10","f11","f12", "prtsc", "insert", "delete", "play", "rewind", "fastforward", "off","`", "1","2","3","4","5","6","7","8","9","0","-","=", "backspace", "num lock","/","*","-","tab", "Q","W","E","R","T","Y","U","I","O","P","[","]","\\", "7", "8", "9", "+","caps","A","S","D","F","G","H","J","K","L",";","'","enter", "4", "5", "6","shift","Z","X","C","V","B","N","M",",",".","/", "shift", "1", "2", "3", "enter", "ctrl", "windows", " ","left","up","down","right"]
 	index = 0
 	global values
 	colorDict, values = setColors(dictFreq, order)
